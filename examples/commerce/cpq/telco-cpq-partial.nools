@@ -1,0 +1,948 @@
+define Item {
+    tmpArray: [],
+    parent: null,
+    code: "",
+    type: "",
+    meta: null,
+    selected: false,
+    enabled: false,
+    constructor: function(parent, code, type, meta, selected, enabled) {
+        this.parent = parent;
+        this.code = code;
+        this.type = type;
+        this.meta = meta;
+        this.selected = selected;
+        this.enabled = enabled;
+    }
+}
+
+define Compatibility {
+    codeA: "",
+    codeB: "",
+    constructor: function(codeA, codeB) {
+        this.codeA = codeA;
+        this.codeB = codeB;
+    } 
+}
+
+define InvalidSelectionError {
+    item: null,
+    msg: "",
+    constructor: function(item, msg) {
+        this.item = item;
+        this.msg = msg;
+    }
+}
+
+define Select {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+define Selected {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+define Deselect {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+define Deselected {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+define Enable {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+define Enabled {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+define Disable {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+define Disabled {
+    item: null,
+    constructor: function(item) {
+        this.item = item;
+    }
+}
+
+// ==========================================================================================
+// BASIC OPERATIONS
+// ==========================================================================================
+
+rule "Intent to select an item" {
+    salience: 1000;
+    when {
+        $op: Select;
+    }
+    then {
+        console.log("Intending to select " + $op.item.code);
+        assert(new Selected($op.item));
+        retract($op);
+    }
+}
+
+rule "Selection of an item" {
+    salience: 2000;
+    when {
+        $op: Selected;
+    }
+    then {
+        if($op.item.selected == false) {
+            modify($op.item, function() {
+                this.selected = true;
+            });
+            console.log("Selected " + $op.item.code);
+        }
+        retract($op);
+    }
+}
+
+rule "Intent to deselect an item" {
+    salience: 1000;
+    when {
+        $op: Deselect;
+    }
+    then {
+        console.log("Intending to deselect " + $op.item.code);
+        assert(new Deselected($op.item));
+        retract($op);
+    }
+}
+
+rule "Deselection of an item" {
+    salience: 2000;
+    when {
+        $op: Deselected;
+    }
+    then {
+        if($op.item.selected == true) {
+            modify($op.item, function() {
+                this.selected = false;
+            });
+            console.log("Deselected " + $op.item.code);
+        }
+        retract($op);
+    }
+}
+
+rule "Intent to enable an item" {
+    salience: 1000;
+    when {
+        $op: Enable;
+    }
+    then {
+        console.log("Intending to enable " + $op.item.code);
+        assert(new Enabled($op.item));
+        retract($op);
+    }
+}
+
+rule "Enable an item" {
+    salience: 2000;
+    when {
+        $op: Enabled;
+    }
+    then {
+        if($op.item.enabled == false) {
+            modify($op.item, function() {
+                this.enabled = true;
+            });
+            console.log("Enabled " + $op.item.code);
+        }
+        retract($op);
+    }
+}
+
+rule "Intent to disable an item" {
+    salience: 1000;
+    when {
+        $op: Disable;
+    }
+    then {
+        console.log("Intending to disable " + $op.item.code);
+        assert(new Disabled($op.item));
+        retract($op);
+    }
+}
+
+rule "Disable an item" {
+    salience: 2000;
+    when {
+        $op: Disabled;
+    }
+    then {
+        if($op.item.enabled == true) {
+            modify($op.item, function() {
+                this.enabled = false;
+            });
+            console.log("Disabled " + $op.item.code);
+        }
+        retract($op);
+    }
+}
+
+// ==========================================================================================
+// LINES
+// ==========================================================================================
+
+// TODO: make this more elegant ... via counters ... or aggregate functions ...
+rule "Max 4 lines" {
+    when {
+        $l1: Item $l1.parent == null;
+        $l2: Item $l2.parent == null && $l2 != $l1;
+        $l3: Item $l3.parent == null && $l3 != $l2 && $l3 != $l1;
+        $l4: Item $l4.parent == null && $l4 != $l3 && $l4 != $l2 && $l4 != $l1;
+        $l5: Item $l5.parent == null && $l5 != $l4 && $l5 != $l3 && $l5 != $l2 && $l5 != $l1;
+        not($ise: InvalidSelectionError $ise.msg == "max.4.lines.exceeded")
+    }
+    then {
+        assert(new InvalidSelectionError($l5, "max.4.lines.exceeded"));
+    }
+}
+
+rule "Line must have either a phone or BYOD" {
+    when {
+        $line: Item $line.type == "Line";
+        not($phone: Item $phone.parent == $line && $phone.type == "Phone" && $phone.selected == true);
+        not($byod: Item $byod.parent == $line && $byod.type == "BYOD" && $byod.selected == true);
+    }
+    then {
+        assert(new InvalidSelectionError($line, "line.requires.phone.or.byod"));
+    }
+}
+
+rule "Line must have either a phone or BYOD, but not both" {
+    when {
+        $line: Item $line.type == "Line";
+        $phone: Item $phone.parent == $line && $phone.type == "Phone" && $phone.selected == true;
+        $byod: Item $byod.parent == $line && $byod.type == "BYOD" && $byod.selected == true;
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.phone.and.byod");
+    }
+    then {
+        assert(new InvalidSelectionError($line, "line.has.phone.and.byod"));
+    }
+}
+
+rule "Line must not have more than one phone" {
+    when {
+        $line: Item $line.type == "Line";
+        $phone1: Item $phone1.parent == $line && $phone1.type == "Phone" && $phone1.selected == true;
+        $phone2: Item $phone2.parent == $line && $phone2.type == "Phone" && $phone2.selected == true && $phone2 != $phone1;
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.phone");
+    }
+    then {
+        assert(new InvalidSelectionError($line, "line.has.more.than.one.phone"));
+    }
+}
+
+rule "Line must not have more than one BYOD" {
+    when {
+        $line: Item $line.type == "Line";
+        $byod1: Item $byod1.parent == $line && $byod1.type == "BYOD";
+        $byod2: Item $byod2.parent == $line && $byod2.type == "BYOD" && $byod2 != $byod1;
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.byod");
+    }
+    then {
+        assert(new InvalidSelectionError($line, "line.has.more.than.one.byod"));
+    }
+}
+
+rule "Line must have a rate plan" {
+    when {
+        $line: Item $line.type == "Line";
+        not($rp: Item $rp.parent == $line && $rp.type == "Rate plan" && $rp.selected == true);
+    }
+    then {
+        assert(new InvalidSelectionError($line, "line.requires.rate.plan"));
+    }
+}
+
+rule "Line must not have more than one rate plan" {
+    when {
+        $line: Item $line.type == "Line";
+        $rp1: Item $rp1.parent == $line && $rp1.type == "Rate plan" && $rp1.selected == true;
+        $rp2: Item $rp2.parent == $line && $rp2.type == "Rate plan"&& $rp2.selected == true && $rp1 != $rp2;
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.rate.plan");
+    }
+    then {
+        assert(new InvalidSelectionError($line, "line.has.more.than.one.rate.plan"));
+    }
+}
+
+rule "Line must not have more than one data plan" {
+    when {
+        $line: Item $line.type == "Line";
+        $dp1: Item $dp1.parent == $line && $dp1.type == "Data plan" && $dp1.selected == true;
+        $dp2: Item $dp2.parent == $line && $dp2.type == "Data plan" && $dp2.selected == true && $dp1 != $dp2;
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.data.plan");
+    }
+    then {
+        assert(new InvalidSelectionError($line, "line.has.more.than.one.data.plan"));
+    }
+}
+
+// ==========================================================================================
+// DATA PLANS - 🔴 TODO: check for the SELECTED phone / rate plan / data plan
+// ==========================================================================================
+
+rule "Data plan must be compatible with rate plan" {
+    when {
+        $line: Item $line.type == "Line";
+        $dataplan: Item $dataplan.parent == $line && $dataplan.type == "Data plan" && $dataplan.selected == true;
+        $rp: Item $rp.parent == $line && $rp.type == "Rate plan" && $rp.selected == true;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $rp.code);
+    }
+    then {
+        assert(new InvalidSelectionError($dataplan, "dataplan.incompatible.with.rateplan"));
+    }
+}
+
+rule "Data plan must be compatible with phone" {
+    when {
+        $line: Item $line.type == "Line";
+        $dataplan: Item $dataplan.parent == $line && $dataplan.type == "Data plan" && $dataplan.selected == true;
+        $phone: Item $phone.parent == $line && $phone.type == "Phone" && $phone.selected == true;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code);
+    }
+    then {
+        assert(new InvalidSelectionError($dataplan, "dataplan.incompatible.with.phone"));
+    }
+}
+
+// ==========================================================================================
+// VAS
+// ==========================================================================================
+
+rule "Selecting USROAM deselects USROAMPLUS" {
+    when {
+        $p: Item;
+        $i1: Item $i1.parent == $p && $i1.code == "USROAM" && $i1.selected == true;
+        $i2: Item $i2.parent == $p && $i2.code == "USROAMPLUS";
+    }
+    then {
+        assert(new Deselect($i2));
+    }
+}
+
+rule "Selecting USROAMPLUS deselects USROAM" {
+    when {
+        $p: Item;
+        $i1: Item $i1.parent == $p && $i1.code == "USROAMPLUS" && $i1.selected == true;
+        $usroam: Item $usroam.parent == $p && $usroam.code == "USROAM";
+    }
+    then {
+        assert(new Deselect($usroam));
+    }
+}
+
+rule "Selecting USROAMPLUS deselects and disables GLOBALROAM" {
+    when {
+        $p: Item;
+        $i: Item $i.parent == $p && $i.code == "USROAMPLUS" && $i.selected == true;
+        $globalroam: Item $globalroam.parent == $p && $globalroam.code == "GLOBALROAM";
+    }
+    then {
+        assert(new Deselect($globalroam));
+        assert(new Disable($globalroam));
+    }
+}
+
+rule "Selecting USROAM and INTLROAM autoselects GLOBALROAM and disables USROAM, INTLROAM and GLOBALROAM itself" {
+    when {
+        $p: Item;
+        $usroam: Item $usroam.parent == $p && $usroam.code == "USROAM" && $usroam.selected == true;
+        $intlroam: Item $intlroam.parent == $p && $intlroam.code == "INTLROAM" && $intlroam.selected == true;
+        $globalroam: Item $globalroam.parent == $p && $globalroam.code == "GLOBALROAM";
+    }
+    then {
+        assert(new Select($globalroam));
+        assert(new Disable($usroam));
+        assert(new Disable($intlroam));
+        assert(new Disable($globalroam));
+    }
+}
+
+rule "Netflix is enabled if there is a dataplan" {
+    when {
+        $p: Item;
+        $nflx: Item $nflx.parent == $p && $nflx.code == "NETFLIX";
+        $dp: Item $dp.parent == $p && $dp.type == "Data plan" && $dp.selected == true;
+    }
+    then {
+        assert(new Enable($nflx));
+    }
+}
+
+rule "Netflix is disabled if there is no dataplan" {
+    when {
+        $p: Item;
+        $nflx: Item $nflx.parent == $p && $nflx.code == "NETFLIX";
+        not($dp: Item $dp.parent == $p && $dp.type == "Data plan" && $dp.selected == true);
+    }
+    then {
+        assert(new Disable($nflx));
+    }
+}
+
+rule "Hulu is enabled if there is a dataplan" {
+    when {
+        $p: Item;
+        $h: Item $h.parent == $p && $h.code == "HULU";
+        $dp: Item $dp.parent == $p && $dp.type == "Data plan" && $dp.selected == true;
+    }
+    then {
+        assert(new Enable($h));
+    }
+}
+
+rule "Hulu is disabled if there is no dataplan" {
+    when {
+        $p: Item;
+        $h: Item $h.parent == $p && $h.code == "HULU";
+        not($dp: Item $dp.parent == $p && $dp.type == "Data plan" && $dp.selected == true);
+    }
+    then {
+        assert(new Disable($h));
+    }
+}
+
+rule "Spotify is enabled if there is a dataplan" {
+    when {
+        $p: Item;
+        $s: Item $s.parent == $p && $s.code == "SPOTIFY";
+        $dp: Item $dp.parent == $p && $dp.type == "Data plan" && $dp.selected == true;
+    }
+    then {
+        assert(new Enable($s));
+    }
+}
+
+rule "Spotify is disabled if there is no dataplan" {
+    when {
+        $p: Item;
+        $s: Item $s.parent == $p && $s.code == "SPOTIFY";
+        not($dp: Item $dp.parent == $p && $dp.type == "Data plan" && $dp.selected == true);
+    }
+    then {
+        assert(new Disable($s));
+    }
+}
+
+rule "ENTERTAINMENT2GO is only enabled if there are at least two media service subscriptions" {
+    when {
+        $p: Item;
+        $media1: Item $media1.parent == $p && $media1.meta.serviceType == "MEDIA" && $media1.selected == true;
+        $media2: Item $media2.parent == $p && $media2.meta.serviceType == "MEDIA" && $media2.selected == true && $media2.code != $media1.code;
+        $ent2go: Item $ent2go.parent == $p && $ent2go.code == "ENTERTAINMENT2GO";
+    }
+    then {
+        assert(new Enable($ent2go));
+    }
+}
+
+rule "ENTERTAINMENT2GO is disabled if there are less than two media service subscriptions" {
+    when {
+        $p: Item;
+        $media1: Item $media1.parent == $p && $media1.meta.serviceType == "MEDIA" && $media1.selected == true;
+        not($media2: Item $media2.parent == $p && $media2.meta.serviceType == "MEDIA" && $media2.selected == true && $media2.code != $media1.code);
+        $ent2go: Item $ent2go.parent == $p && $ent2go.code == "ENTERTAINMENT2GO";
+    }
+    then {
+        assert(new Disable($ent2go));
+    }
+}
+
+rule "Disabling ENTERTAINMENT2GO also deselects it" {
+    when {
+        $ent2go: Item $ent2go.code == "ENTERTAINMENT2GO" && $ent2go.enabled == false;
+    }
+    then {
+        assert(new Deselect($ent2go));
+    }
+}
+
+// ==========================================================================================
+// COMPATIBILITY: BASIC RULES
+// ==========================================================================================
+
+rule "Every compatibility is commutative (i.e. 'symmetrical')" {
+    salience: 1000,
+    when {
+        $c1: Compatibility;
+        not($c2: Compatibility $c2.codeA == $c1.codeB && $c2.codeB == $c1.codeA);
+    }
+    then {
+        assert(new Compatibility($c1.codeB, $c1.codeA));
+    }
+}
+
+// ==========================================================================================
+// COMPATIBILITY: DATAPLAN <=> RATE PLANS
+// ==========================================================================================
+
+rule "DATA2GB is compatible with Legacy plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA2GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Legacy";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA2GB is compatible with US B2C plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA2GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA5GB is compatible with US B2C plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA5GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA10GB is compatible with US B2C plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA10GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA10GB is compatible with Enterprise plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA10GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA20GB is compatible with US B2C plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA20GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA20GB is compatible with Enterprise plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA20GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA50GB is compatible with Enterprise plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA50GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "DATA100GB is compatible with Exec plan" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA100GB";
+        $plan: Item $plan.type == "Rate plan" && $plan.code == "EXEC"
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+// ==========================================================================================
+// COMPATIBILITY: DATAPLAN <=> PHONE
+// ==========================================================================================
+
+rule "DATA2GB is compatible with phones supporting 3G networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA2GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "3G" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+        //$phone: Item $phone.type == "Phone" && "3G" in [ $phone.meta.supportedNetworks ]; // <-- IN operaror not working as expected
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA2GB is compatible with phones supporting LTE networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA2GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "LTE" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA5GB is compatible with phones supporting LTE networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA5GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "LTE" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA5GB is compatible with phones supporting 5G networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA5GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "5G" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA10GB is compatible with phones supporting LTE networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA10GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "LTE" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA10GB is compatible with phones supporting 5G networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA10GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "5G" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA20GB is compatible with phones supporting LTE networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA20GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "LTE" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA20GB is compatible with phones supporting 5G networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA20GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "5G" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA50GB is compatible with phones supporting LTE networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA50GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "LTE" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA50GB is compatible with phones supporting 5G networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA50GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "5G" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+rule "DATA100GB is compatible with phones supporting 5G networks" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "DATA100GB";
+        $phone: Item $phone.type == "Phone";
+        $network: String $network == "5G" from $phone.meta.supportedNetworks;
+        not($c: Compatibility $c.codeA == $dataplan.code && $c.codeB == $phone.code)
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $phone.code));
+    }
+}
+
+// ==========================================================================================
+// COMPATIBILITY: VAS <=> RATE PLAN
+// ==========================================================================================
+
+rule "USROAM is compatible with TALKER rate plan" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "USROAM";
+        $plan: Item $plan.type == "Rate plan" && $plan.code == "TALKER";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "USROAM is compatible with Enterprise rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "USROAM";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "USROAMPLUS is compatible with TALKER rate plan" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "USROAMPLUS";
+        $plan: Item $plan.type == "Rate plan" && $plan.code == "TALKER";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "USROAMPLUS is compatible with Enterprise rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "USROAMPLUS";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "INTLROAM is compatible with TALKER rate plan" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "INTLROAM";
+        $plan: Item $plan.type == "Rate plan" && $plan.code == "TALKER";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "INTLROAM is compatible with Enterprise rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "INTLROAM";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "GLOBALROAM is compatible with TALKER rate plan" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "GLOBALROAM";
+        $plan: Item $plan.type == "Rate plan" && $plan.code == "TALKER";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "GLOBALROAM is compatible with Enterprise rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "GLOBALROAM";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "NETFLIX is compatible with US B2C rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "NETFLIX";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "HULU is compatible with US B2C rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "HULU";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "SPOTIFY is compatible with US B2C rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "SPOTIFY";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "ENTERTAINMENT2GO is compatible with US B2C rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "ENTERTAINMENT2GO";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "CALLERID is compatible with US B2C rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "CALLERID";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "US B2C";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+rule "CALLERID is compatible with US B2C rate plans" {
+    salience: 2000,
+    when {
+        $dataplan: Item $dataplan.code == "CALLERID";
+        $plan: Item $plan.type == "Rate plan" && $plan.meta.family == "Enterprise";
+    }
+    then {
+        assert(new Compatibility($dataplan.code, $plan.code));
+    }
+}
+
+// ==========================================================================================
+// COMPATIBILITY: VAS <=> PHONE
+// ==========================================================================================
+
+rule "NETFLIX is compatible with Apple phones" {
+    salience: 2000,
+    when {
+        $vas: Item $vas.code == "NETFLIX";
+        $phone: Item $phone.type == "Phone" && $phone.meta.brand == "Apple"
+    }
+    then {
+        assert(new Compatibility($vas.code, $phone.code));
+    }
+}
+
+rule "NETFLIX is compatible with Samsung Galaxy phones" {
+    salience: 2000,
+    when {
+        $vas: Item $vas.code == "NETFLIX";
+        $phone: Item $phone.type == "Phone" && $phone.meta.brand == "Samsung" && $phone.meta.model like /Galaxy/
+    }
+    then {
+        assert(new Compatibility($vas.code, $phone.code));
+    }
+}
+
+rule "HULU is compatible with Apple phones" {
+    salience: 2000,
+    when {
+        $vas: Item $vas.code == "HULU";
+        $phone: Item $phone.type == "Phone" && $phone.meta.brand == "Apple"
+    }
+    then {
+        assert(new Compatibility($vas.code, $phone.code));
+    }
+}

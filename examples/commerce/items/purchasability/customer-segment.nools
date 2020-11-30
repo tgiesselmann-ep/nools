@@ -1,0 +1,29 @@
+rule "Customer segments" {
+    when {
+        $customer: Customer
+        $segment: String from $customer.segments
+    }
+    then{
+        assert(new CustomerSegment($segment))
+    }
+}
+
+rule "Item segments" {
+    when {
+        $item: Item
+        $segment: String from $item.segments
+    }
+    then{
+        assert(new ItemSegment($segment))
+    }
+}
+
+rule "No customer segment matches the item segments" {
+    when {
+        $itemSegment: ItemSegment
+        not($customerSegment: CustomerSegment $customerSegment == $itemSegment)
+    }
+    then{
+        assert(new PurchasabilityDecision(false, "customer.segment"))
+    }
+}

@@ -1,0 +1,22 @@
+rule "Country restriction" {
+    when {
+        $item: Item
+        $shippingAddress: Address
+        $shippingRestriction: ShippingRestriction $shippingRestriction.item == $item && $shippingRestriction.country == $shippingAddress.country
+    }
+    then{
+        assert(new PurchasabilityDecision(false, "shipping.country"))
+    }
+}
+
+rule "State restriction" {
+    when {
+        $item: Item
+        $shippingAddress: Address
+        $shippingRestriction: ShippingRestriction $shippingRestriction.item == $item && $shippingRestriction.country == $shippingAddress.country && $shippingRestriction.state == $shippingAddress.state
+    }
+    then{
+        assert(new PurchasabilityDecision(false, "shipping.state"))
+    }
+}
+
