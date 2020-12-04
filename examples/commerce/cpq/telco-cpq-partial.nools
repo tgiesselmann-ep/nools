@@ -3,13 +3,15 @@ define Item {
     parent: null,
     code: "",
     type: "",
+    group: "",
     meta: null,
     selected: false,
     enabled: false,
-    constructor: function(parent, code, type, meta, selected, enabled) {
+    constructor: function(parent, code, type, group, meta, selected, enabled) {
         this.parent = parent;
         this.code = code;
         this.type = type;
+        this.group = group;
         this.meta = meta;
         this.selected = selected;
         this.enabled = enabled;
@@ -22,6 +24,29 @@ define Compatibility {
     constructor: function(codeA, codeB) {
         this.codeA = codeA;
         this.codeB = codeB;
+    } 
+}
+
+define SelectionState {
+    parent: null,
+    group: "",
+    processedItems: [],
+    numSelected: 0,
+    constructor: function(parent, group){
+        this.parent = parent;
+        this.group = group;
+        this.processedItems = [];
+    }
+}
+
+define SelectionConstraint {
+    group: "",
+    minSelections: 0,
+    maxSelections: 0,
+    constructor: function(group, minSelections, maxSelections) {
+        this.group = group;
+        this.minSelections = minSelections;
+        this.maxSelections = maxSelections;
     } 
 }
 
@@ -95,14 +120,98 @@ define Disabled {
 // ==========================================================================================
 
 rule "Intent to select an item" {
-    salience: 1000;
+    salience: 9000,
     when {
         $op: Select;
     }
     then {
         console.log("Intending to select " + $op.item.code);
+        focus("determine-selection-state");
+        //assert(new Selected($op.item));
+        //retract($op);
+    }
+}
+
+/*
+rule "LOG" {
+    salience: 9000,
+    agenda-group: "determine-selection-state",
+    when {
+        $ss: SelectionState;
+    }
+    then {
+        console.log("SelectionState.group: " + $ss.group);
+        console.log("SelectionState.numSelected: " + $ss.numSelected);
+        console.log("SelectionState.processedItems:");
+        console.log($ss.processedItems);
+    }
+}
+*/
+
+rule "Determine selection state - initialize" {
+    agenda-group: "determine-selection-state",
+    when {
+        $op: Select;
+        not($ss: SelectionState $ss.parent == $op.item.parent && $ss.group == $op.item.group);
+    }
+    then {
+        console.log("About to count ...");
+        assert(new SelectionState($op.item.parent, $op.item.group));
+    }
+}
+
+rule "Determine selection state - count all selected in group" {
+    agenda-group: "determine-selection-state",
+    when {
+        $op: Select;
+        $ss: SelectionState $ss.parent == $op.item.parent && $ss.group == $op.item.group;
+        $it: Item $it.parent == $op.item.parent && $it.group == $op.item.group;
+        not($oi: Item $oi == $it from $ss.processedItems);
+    }
+    then {
+        //console.log("Adding following item which matched group " + $op.item.group + ":");
+        //console.log($it);
+        modify($ss, function() {
+            //console.log("$it.selected: " + $it.selected);
+            if($it.selected == true) {
+                this.numSelected++;
+            };
+            this.processedItems.push($it);
+        });
+    }
+}
+
+rule "Intent to select an item under constraints" {
+    salience: 2000,
+    when {
+        $op: Select;
+        $sc: SelectionConstraint $sc.group == $op.item.group;
+        $ss: SelectionState $ss.group == $op.item.group && $ss.parent == $op.item.parent && ($ss.numSelected + 1) <= $sc.maxSelections;
+    }
+    then {
+        console.log("SelectionConstraint satisfied: " + ($ss.numSelected + 1) + " <= " + $sc.maxSelections + " (max))");
         assert(new Selected($op.item));
         retract($op);
+        retract($ss);
+    }
+}
+
+rule "Intent to select an item under constraints - radio button behaviour when maxSelections = 1" {
+    salience: 3000,
+    when {
+        $op: Select;
+        $sc: SelectionConstraint $sc.group == $op.item.group && $sc.maxSelections == 1;
+        $ss: SelectionState $ss.group == $op.item.group && $ss.parent == $op.item.parent && $ss.numSelected == 1;
+        $cs: Item $cs.selected == true from $ss.processedItems; // currently selected item
+    }
+    then {
+        console.log("SelectionConstraint.maxSelections: " + $sc.maxSelections);
+        console.log("currently selected: " + $cs.code);
+
+        assert(new Selected($op.item));
+        assert(new Deselect($cs));
+        retract($op);
+        retract($ss);
     }
 }
 
@@ -276,9 +385,10 @@ rule "Line must have a rate plan" {
     when {
         $line: Item $line.type == "Line";
         not($rp: Item $rp.parent == $line && $rp.type == "Rate plan" && $rp.selected == true);
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.requires.rateplan");
     }
     then {
-        assert(new InvalidSelectionError($line, "line.requires.rate.plan"));
+        assert(new InvalidSelectionError($line, "line.requires.rateplan"));
     }
 }
 
@@ -287,10 +397,10 @@ rule "Line must not have more than one rate plan" {
         $line: Item $line.type == "Line";
         $rp1: Item $rp1.parent == $line && $rp1.type == "Rate plan" && $rp1.selected == true;
         $rp2: Item $rp2.parent == $line && $rp2.type == "Rate plan"&& $rp2.selected == true && $rp1 != $rp2;
-        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.rate.plan");
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.rateplan");
     }
     then {
-        assert(new InvalidSelectionError($line, "line.has.more.than.one.rate.plan"));
+        assert(new InvalidSelectionError($line, "line.has.more.than.one.rateplan"));
     }
 }
 
@@ -299,10 +409,10 @@ rule "Line must not have more than one data plan" {
         $line: Item $line.type == "Line";
         $dp1: Item $dp1.parent == $line && $dp1.type == "Data plan" && $dp1.selected == true;
         $dp2: Item $dp2.parent == $line && $dp2.type == "Data plan" && $dp2.selected == true && $dp1 != $dp2;
-        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.data.plan");
+        not($ise: InvalidSelectionError $ise.item == $line && $ise.msg == "line.has.more.than.one.dataplan");
     }
     then {
-        assert(new InvalidSelectionError($line, "line.has.more.than.one.data.plan"));
+        assert(new InvalidSelectionError($line, "line.has.more.than.one.dataplan"));
     }
 }
 
