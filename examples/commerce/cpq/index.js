@@ -9,63 +9,58 @@ var SelectionState = flow.getDefined("SelectionState");
 var SelectionConstraint = flow.getDefined("SelectionConstraint");
 var InvalidSelectionError = flow.getDefined("InvalidSelectionError");
 
-// parent, code, type, meta, selected, enabled
-var line = new Item(null, "LINE", "Line", "lines", {}, true, true);
-// var line2 = new Item(null, "LINE", "Line", {}, true, true);
-// var line3 = new Item(null, "LINE", "Line", {}, true, true);
-// var line4 = new Item(null, "LINE", "Line", {}, true, true);
-// var line5 = new Item(null, "LINE", "Line", {}, true, true);
+// id, order, parent, code, type, meta, selected, enabled
+var line = new Item("LINE1", 1, null, "LINE", "Line", "lines", {}, true, true);
 
-var iphone = new Item(line, "IPHONE", "Phone", "phones",
+var iphone = new Item("IPHONE", 2, line, "IPHONE", "Phone", "phones",
         {
             brand: "Apple",
             model: "iPhone",
             supportedNetworks: [ "LTE", "3G", "5G" ]
         }, false, true);
 
-var galaxy = new Item(line, "GALAXY", "Phone", "phones",
+var galaxy = new Item("GALAXY", 3, line, "GALAXY", "Phone", "phones",
         {
             brand: "Samsung",
             model: "Galaxy 10",
             supportedNetworks: [ "LTE", "5G" ]
         }, false, true);
 
-var nokia = new Item(line, "NOKIA3310", "Phone", "phones",
+var nokia = new Item("NOKIA3310", 4, line, "NOKIA3310", "Phone", "phones",
         {
             brand: "Nokia",
             model: "3310",
             supportedNetworks: [ "3G" ]
         }, false, true);
 
-var byod = new Item(line, "BYOD", "BYOD", "phones", {}, false, true);
-//var byod2 = new Item(line, "BYOD", "BYOD", "phones", {}, false, true);
+var byod = new Item("BYOD", 5, line, "BYOD", "BYOD", "phones", {}, false, true);
 
-var newbie = new Item(line, "NOOB", "Rate plan", "rateplans", { family: "Legacy" }, false, true);
-var basic = new Item(line, "BASIC", "Rate plan", "rateplans", { family: "US B2C" }, false, true);
-var talker = new Item(line, "TALKER", "Rate plan", "rateplans", { family: "US B2C" }, false, true);
-var family = new Item(line, "FAMILY", "Rate plan", "rateplans", { family: "US B2C" }, false, true);
-var startup = new Item(line, "STARTUP", "Rate plan", "rateplans", { family: "Enterprise" }, false, true);
-var smallbiz = new Item(line, "SMALLBIZ", "Rate plan", "rateplans", { family: "Enterprise" }, false, true);
-var exec = new Item(line, "EXEC", "Rate plan", "rateplans", { family: "Enterprise" }, false, true);
+var newbie = new Item("NOOB", 6, line, "NOOB", "Rate plan", "rateplans", { family: "Legacy" }, false, true);
+var basic = new Item("BASIC", 7, line, "BASIC", "Rate plan", "rateplans", { family: "US B2C" }, false, true);
+var talker = new Item("TALKER", 8, line, "TALKER", "Rate plan", "rateplans", { family: "US B2C" }, false, true);
+var family = new Item("FAMILY", 9, line, "FAMILY", "Rate plan", "rateplans", { family: "US B2C" }, false, true);
+var startup = new Item("STARTUP", 10, line, "STARTUP", "Rate plan", "rateplans", { family: "Enterprise" }, false, true);
+var smallbiz = new Item("SMALLBIZ", 11, line, "SMALLBIZ", "Rate plan", "rateplans", { family: "Enterprise" }, false, true);
+var exec = new Item("EXEC", 12, line, "EXEC", "Rate plan", "rateplans", { family: "Enterprise" }, false, true);
 
-var data2gb = new Item(line, "DATA2GB", "Data plan", "dataplans", {}, false, true);
-var data5gb = new Item(line, "DATA5GB", "Data plan", "dataplans", {}, false, true);
-var data10gb = new Item(line, "DATA10GB", "Data plan", "dataplans", {}, false, true);
-var data20gb = new Item(line, "DATA20GB", "Data plan", "dataplans", {}, false, true);
-var data50gb = new Item(line, "DATA50GB", "Data plan", "dataplans", {}, false, true);
-var data100gb = new Item(line, "DATA100GB", "Data plan", "dataplans", {}, false, true);
+var data2gb = new Item("DATA2GB", 13, line, "DATA2GB", "Data plan", "dataplans", {}, false, true);
+var data5gb = new Item("DATA5GB", 14, line, "DATA5GB", "Data plan", "dataplans", {}, false, true);
+var data10gb = new Item("DATA10GB", 15, line, "DATA10GB", "Data plan", "dataplans", {}, false, true);
+var data20gb = new Item("DATA20GB", 16, line, "DATA20GB", "Data plan", "dataplans", {}, false, true);
+var data50gb = new Item("DATA50GB", 17, line, "DATA50GB", "Data plan", "dataplans", {}, false, true);
+var data100gb = new Item("DATA100GB", 18, line, "DATA100GB", "Data plan", "dataplans", {}, false, true);
 
-var usroam = new Item(line, "USROAM", "VAS", "vas-roaming-us", {}, false, true);
-var usroamplus = new Item(line, "USROAMPLUS", "VAS", "vas-roaming-us", {}, false, true);
-var intlroam = new Item(line, "INTLROAM", "VAS", "vas-roaming", {}, false, true);
-var globalroam = new Item(line, "GLOBALROAM", "VAS", "vas-roaming", {}, false, true);
+var usroam = new Item("USROAM", 19, line, "USROAM", "VAS", "vas-roaming-us", {}, false, true);
+var usroamplus = new Item("USROAMPLUS", 20, line, "USROAMPLUS", "VAS", "vas-roaming-us", {}, false, true);
+var intlroam = new Item("INTLROAM", 21, line, "INTLROAM", "VAS", "vas-roaming", {}, false, true);
+var globalroam = new Item("GLOBALROAM", 22, line, "GLOBALROAM", "VAS", "vas-roaming", {}, false, true);
 
-var netflix = new Item(line, "NETFLIX", "VAS", "vas-media", { serviceType: "MEDIA" }, false, false);
-var hulu = new Item(line, "HULU", "VAS", "vas-media", { serviceType: "MEDIA" }, false, false);
-var spotify = new Item(line, "SPOTIFY", "VAS", "vas-media", { serviceType: "MEDIA" }, false, false);
-var entertainment2go = new Item(line, "ENTERTAINMENT2GO", "VAS", "vas-media-e2go", {}, false, false);
+var netflix = new Item("NETFLIX", 23, line, "NETFLIX", "VAS", "vas-media", { serviceType: "MEDIA" }, false, false);
+var hulu = new Item("HULU", 24, line, "HULU", "VAS", "vas-media", { serviceType: "MEDIA" }, false, false);
+var spotify = new Item("SPOTIFY", 25, line, "SPOTIFY", "VAS", "vas-media", { serviceType: "MEDIA" }, false, false);
+var entertainment2go = new Item("ENTERTAINMENT2GO", 26, line, "ENTERTAINMENT2GO", "VAS", "vas-media-e2go", {}, false, false);
 
-var callerid = new Item(line, "CALLERID", "VAS", "vas-callerid", {}, false, true);
+var callerid = new Item("CALLERID", 27, line, "CALLERID", "VAS", "vas-callerid", {}, false, true);
 
 
 
@@ -127,28 +122,31 @@ async function runDataplanToRateplanCompatibility() {
     session.assert(callerid);
 
     //logStuff();
-    await execute();
+    //await execute();
 
     session.assert(new Select(galaxy));
     await execute();
     
-    session.assert(new Select(iphone));
-    await execute();
+    // session.assert(new Select(iphone));
+    // await execute();
     
-    session.assert(new Select(basic));
-    await execute();
+    // session.assert(new Select(basic));
+    // await execute();
     
-    session.assert(new Select(data5gb));
-    await execute();
+    // session.assert(new Select(data5gb));
+    // await execute();
 
-    session.assert(new Select(data10gb));
-    await execute();
+    // session.assert(new Select(data10gb));
+    // await execute();
 
-    session.assert(new Select(netflix));
-    await execute();
+    // session.assert(new Select(netflix));
+    // await execute();
 
-    session.assert(new Select(hulu));
-    await execute();
+    // session.assert(new Select(hulu));
+    // await execute();
+
+    // session.assert(new Deselect(netflix));
+    // await execute();
 
     // session.assert(new Select(newbie));
     // session.assert(new Select(basic));

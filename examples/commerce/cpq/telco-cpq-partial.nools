@@ -1,5 +1,6 @@
 define Item {
-    tmpArray: [],
+    id: "",
+    order: 0,
     parent: null,
     code: "",
     type: "",
@@ -7,7 +8,9 @@ define Item {
     meta: null,
     selected: false,
     enabled: false,
-    constructor: function(parent, code, type, group, meta, selected, enabled) {
+    constructor: function(id, order, parent, code, type, group, meta, selected, enabled) {
+        this.id = id;
+        this.order = order;
         this.parent = parent;
         this.code = code;
         this.type = type;
@@ -119,34 +122,30 @@ define Disabled {
 // BASIC OPERATIONS
 // ==========================================================================================
 
+rule "Intent to select an already selected or disabled item is ignored" {
+    salience: 10000,
+    when {
+        $op: Select $op.item.selected == true || $op.item.enabled == false;
+    }
+    then {
+        console.log("Ignoring intent to select a disabled or already selected item: ");
+        console.log($op.item);
+        retract($op);
+    }
+}
+
 rule "Intent to select an item" {
     salience: 9000,
     when {
         $op: Select;
     }
     then {
-        console.log("Intending to select " + $op.item.code);
+        //console.log("Intending to select " + $op.item.code);
         focus("determine-selection-state");
         //assert(new Selected($op.item));
         //retract($op);
     }
 }
-
-/*
-rule "LOG" {
-    salience: 9000,
-    agenda-group: "determine-selection-state",
-    when {
-        $ss: SelectionState;
-    }
-    then {
-        console.log("SelectionState.group: " + $ss.group);
-        console.log("SelectionState.numSelected: " + $ss.numSelected);
-        console.log("SelectionState.processedItems:");
-        console.log($ss.processedItems);
-    }
-}
-*/
 
 rule "Determine selection state - initialize" {
     agenda-group: "determine-selection-state",
@@ -155,7 +154,7 @@ rule "Determine selection state - initialize" {
         not($ss: SelectionState $ss.parent == $op.item.parent && $ss.group == $op.item.group);
     }
     then {
-        console.log("About to count ...");
+        console.log("Detemining state ...");
         assert(new SelectionState($op.item.parent, $op.item.group));
     }
 }
@@ -189,7 +188,7 @@ rule "Intent to select an item under constraints" {
         $ss: SelectionState $ss.group == $op.item.group && $ss.parent == $op.item.parent && ($ss.numSelected + 1) <= $sc.maxSelections;
     }
     then {
-        console.log("SelectionConstraint satisfied: " + ($ss.numSelected + 1) + " <= " + $sc.maxSelections + " (max))");
+        //console.log("SelectionConstraint satisfied: " + ($ss.numSelected + 1) + " <= " + $sc.maxSelections + " (max))");
         assert(new Selected($op.item));
         retract($op);
         retract($ss);
@@ -205,7 +204,7 @@ rule "Intent to select an item under constraints - radio button behaviour when m
         $cs: Item $cs.selected == true from $ss.processedItems; // currently selected item
     }
     then {
-        console.log("SelectionConstraint.maxSelections: " + $sc.maxSelections);
+        //console.log("SelectionConstraint.maxSelections: " + $sc.maxSelections);
         console.log("currently selected: " + $cs.code);
 
         assert(new Selected($op.item));
@@ -214,6 +213,13 @@ rule "Intent to select an item under constraints - radio button behaviour when m
         retract($ss);
     }
 }
+
+// ==========================================================================================
+// 🔴 TODO: disable all remaining choices when the max number of selections has been made
+//          ... except for "radio buttons" ...
+// ==========================================================================================
+
+// ...
 
 rule "Selection of an item" {
     salience: 2000;
@@ -237,7 +243,7 @@ rule "Intent to deselect an item" {
         $op: Deselect;
     }
     then {
-        console.log("Intending to deselect " + $op.item.code);
+        //console.log("Intending to deselect " + $op.item.code);
         assert(new Deselected($op.item));
         retract($op);
     }
@@ -265,7 +271,7 @@ rule "Intent to enable an item" {
         $op: Enable;
     }
     then {
-        console.log("Intending to enable " + $op.item.code);
+        //console.log("Intending to enable " + $op.item.code);
         assert(new Enabled($op.item));
         retract($op);
     }
@@ -293,7 +299,7 @@ rule "Intent to disable an item" {
         $op: Disable;
     }
     then {
-        console.log("Intending to disable " + $op.item.code);
+        //console.log("Intending to disable " + $op.item.code);
         assert(new Disabled($op.item));
         retract($op);
     }
@@ -417,7 +423,7 @@ rule "Line must not have more than one data plan" {
 }
 
 // ==========================================================================================
-// DATA PLANS - 🔴 TODO: check for the SELECTED phone / rate plan / data plan
+// DATA PLANS
 // ==========================================================================================
 
 rule "Data plan must be compatible with rate plan" {
